@@ -5,47 +5,52 @@
   <title>Shopnomix Reports Downloader</title>
   <style>
     body { font-family: sans-serif; margin: 40px; background: #f6f8fa; }
-    .container { max-width: 500px; margin: auto; padding: 30px; background: white; border-radius: 12px; box-shadow: 0 2px 10px #ddd; }
-    select, button, input[type="checkbox"] { font-size: 1rem; margin-top: 10px; margin-bottom: 10px; padding: 8px; }
+    .container { max-width: 520px; margin: auto; padding: 30px; background: white; border-radius: 12px; box-shadow: 0 2px 10px #ddd; }
+    select, button, input[type="radio"] { font-size: 1rem; margin-top: 10px; margin-bottom: 10px; padding: 8px; }
     button { background: #2ea44f; color: white; border: none; border-radius: 6px; cursor: pointer;}
     button:hover { background: #22863a; }
     .note { font-size: 0.9em; color: #555; }
     label { margin-top: 10px; margin-bottom: 4px; display: block; }
     .section { margin-bottom: 18px;}
-    .checkbox-group label { display: block; margin: 6px 0; }
+    .hidden { display: none; }
+    .category-group label { font-weight: bold; margin-top: 12px; }
   </style>
   <script>
-    const reports = {
+    // Report endpoints and campaign IDs
+    const config = {
+      amazon: {
+        label: "Amazon (Stats by Campaign ID)",
+        campaignId: "AMAZON_CAMPAIGN_ID", // Replace with actual Amazon campaign ID
+        apiToken: "AMAZON_API_TOKEN",     // Replace with actual Amazon API Token
+        endpoint: "campaign"
+      },
       booking: {
-        name: "Conversion Report (Booking.com)",
-        url: function(startDate, endDate) {
-          const campaignId = "01JQXZQQ6R2AYMAEC2F72ZDFM6";
-          const apiToken = "01JQXZQFZXEADNXDV0Z0483VC9";
-          return `https://r.v2i8b.com/api/v1/reporting/client/conversion?campaign_id=${campaignId}&api_token=${apiToken}&start_date=${startDate}&end_date=${endDate}&format=csv`;
-        }
+        label: "Booking.com",
+        campaignId: "01JQXZQQ6R2AYMAEC2F72ZDFM6",
+        apiToken: "01JQXZQFZXEADNXDV0Z0483VC9",
+        endpoints: ["conversion", "campaign"]
       },
       others: {
-        name: "Conversion Report (Others)",
-        url: function(startDate, endDate) {
-          const campaignId = "01JQXYJZ0CZ9FANHC1F2J9F2SQ";
-          const apiToken = "01JQXYJ42DTD14394TZTA92RMJ";
-          return `https://r.v2i8b.com/api/v1/reporting/client/conversion?campaign_id=${campaignId}&api_token=${apiToken}&start_date=${startDate}&end_date=${endDate}&format=csv`;
-        }
+        label: "All Others",
+        campaignId: "01JQXYJZ0CZ9FANHC1F2J9F2SQ",
+        apiToken: "01JQXYJ42DTD14394TZTA92RMJ",
+        endpoints: ["conversion", "campaign"]
       },
-      domain: {
-        name: "Revenue by Domain",
-        url: function(startDate, endDate) {
-          const campaignId = "01JQXYJZ0CZ9FANHC1F2J9F2SQ";
-          const apiToken = "01JQXYJ42DTD14394TZTA92RMJ";
-          return `https://r.v2i8b.com/api/v1/reporting/client/domain?campaign_id=${campaignId}&start_date=${startDate}&end_date=${endDate}&api_token=${apiToken}&format=csv`;
-        }
-      },
-      campaign: {
-        name: "Stats by Campaign ID",
-        url: function(startDate, endDate) {
-          const campaignId = "01JQXYJZ0CZ9FANHC1F2J9F2SQ";
-          const apiToken = "01JQXYJ42DTD14394TZTA92RMJ";
-          return `https://r.v2i8b.com/api/v1/reporting/client/campaign?campaign_id=${campaignId}&start_date=${startDate}&end_date=${endDate}&api_token=${apiToken}&format=csv`;
+      earnings: {
+        label: "Earnings Report (Revenue by Domain)",
+        options: {
+          booking: {
+            label: "Booking.com",
+            campaignId: "01JQXZQQ6R2AYMAEC2F72ZDFM6",
+            apiToken: "01JQXZQFZXEADNXDV0Z0483VC9",
+            endpoint: "domain"
+          },
+          others: {
+            label: "All Others",
+            campaignId: "01JQXYJZ0CZ9FANHC1F2J9F2SQ",
+            apiToken: "01JQXYJ42DTD14394TZTA92RMJ",
+            endpoint: "domain"
+          }
         }
       }
     };
@@ -66,39 +71,87 @@
       return new Date(year, month, 0).getDate();
     }
 
+    function onCategoryChange() {
+      // Hide sub-option for earnings by default
+      document.getElementById('earnings-options').classList.add('hidden');
+      document.getElementById('earnings-options').innerHTML = '';
+      let selected = document.querySelector('input[name="category"]:checked');
+      if (!selected) return;
+      if (selected.value === "earnings") {
+        let html = '';
+        for (const key in config.earnings.options) {
+          html += `<label><input type="radio" name="earningsType" value="${key}"> ${config.earnings.options[key].label}</label>`;
+        }
+        document.getElementById('earnings-options').innerHTML = html;
+        document.getElementById('earnings-options').classList.remove('hidden');
+      }
+    }
+
     function downloadReports() {
       const year = document.getElementById('year').value;
       const month = document.getElementById('month').value;
-      let errors = [];
-      if (!year || !month) errors.push("year/month");
-
-      // Get which reports are checked
-      const checked = Array.from(document.querySelectorAll('input[name="report"]:checked')).map(cb => cb.value);
-      if (checked.length === 0) errors.push("at least one report type");
-
-      if (errors.length) {
-        alert("Please select: " + errors.join(" and "));
+      if (!year || !month) {
+        alert("Please select year and month.");
         return;
       }
-
+      const yearNum = parseInt(year, 10);
+      const monthNum = parseInt(month, 10);
       const startDate = `${year}-${month}-01`;
-      const endDay = lastDayOfMonth(year, month);
+      const endDay = lastDayOfMonth(yearNum, monthNum);
       const endDate = `${year}-${month}-${endDay}`;
 
-      // All reports use the same date range (the selected month)
-      checked.forEach(type => {
-        window.open(reports[type].url(startDate, endDate), "_blank");
-      });
+      let selected = document.querySelector('input[name="category"]:checked');
+      if (!selected) {
+        alert("Please select a report category.");
+        return;
+      }
+      let category = selected.value;
+
+      if (category === "amazon") {
+        // Only campaign stats for Amazon
+        const cfg = config.amazon;
+        const url = `https://r.v2i8b.com/api/v1/reporting/client/${cfg.endpoint}?campaign_id=${cfg.campaignId}&api_token=${cfg.apiToken}&start_date=${startDate}&end_date=${endDate}&format=csv`;
+        window.open(url, "_blank");
+      } else if (category === "booking" || category === "others") {
+        // Both conversion and campaign stats
+        const cfg = config[category];
+        cfg.endpoints.forEach(endpoint => {
+          const url = `https://r.v2i8b.com/api/v1/reporting/client/${endpoint}?campaign_id=${cfg.campaignId}&api_token=${cfg.apiToken}&start_date=${startDate}&end_date=${endDate}&format=csv`;
+          window.open(url, "_blank");
+        });
+      } else if (category === "earnings") {
+        // Revenue by domain, need to know Booking.com or Others
+        const earningsTypeEl = document.querySelector('input[name="earningsType"]:checked');
+        if (!earningsTypeEl) {
+          alert("Please select a brand/source for Earnings Report.");
+          return;
+        }
+        const earningsType = earningsTypeEl.value;
+        const cfg = config.earnings.options[earningsType];
+        const url = `https://r.v2i8b.com/api/v1/reporting/client/${cfg.endpoint}?campaign_id=${cfg.campaignId}&api_token=${cfg.apiToken}&start_date=${startDate}&end_date=${endDate}&format=csv`;
+        window.open(url, "_blank");
+      }
     }
 
     window.onload = function() {
       populateYears();
+      document.querySelectorAll('input[name="category"]').forEach(function(radio) {
+        radio.addEventListener('change', onCategoryChange);
+      });
     };
   </script>
 </head>
 <body>
   <div class="container">
     <h2>Shopnomix Report Downloader</h2>
+    <div class="category-group section">
+      <label>Select Report Category:</label>
+      <label><input type="radio" name="category" value="amazon"> Amazon (Stats by Campaign ID)</label>
+      <label><input type="radio" name="category" value="booking"> Booking.com (Conversion & Stats by Campaign ID)</label>
+      <label><input type="radio" name="category" value="others"> All Others (Conversion & Stats by Campaign ID)</label>
+      <label><input type="radio" name="category" value="earnings"> Earnings Report (Revenue by Domain)</label>
+    </div>
+    <div id="earnings-options" class="section hidden"></div>
     <div id="ym-fields" class="section">
       <label for="year">Year:</label>
       <select id="year"></select>
@@ -119,13 +172,7 @@
         <option value="12">December</option>
       </select>
     </div>
-    <div class="checkbox-group section">
-      <label><input type="checkbox" name="report" value="booking"> Conversion Report (Booking.com)</label>
-      <label><input type="checkbox" name="report" value="others"> Conversion Report (Others)</label>
-      <label><input type="checkbox" name="report" value="domain"> Revenue by Domain</label>
-      <label><input type="checkbox" name="report" value="campaign"> Stats by Campaign ID</label>
-    </div>
-    <button onclick="downloadReports()">Download Selected Reports</button>
+    <button onclick="downloadReports()">Download Report(s)</button>
     <div class="note">
       The selected report(s) will open in a new tab for download.<br>
       If you see an error, the report for the selected period may not exist yet.
