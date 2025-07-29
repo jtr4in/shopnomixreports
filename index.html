@@ -34,8 +34,9 @@
 
     function populateYears() {
       const yearSelect = document.getElementById('year');
+      const startYear = 2025;
       const currentYear = new Date().getFullYear();
-      for (let y = currentYear; y >= currentYear - 5; y--) {
+      for (let y = startYear; y <= currentYear; y++) {
         let opt = document.createElement('option');
         opt.value = y;
         opt.text = y;
