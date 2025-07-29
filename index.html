@@ -2,46 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Monthly Report Viewer & Downloader</title>
+  <title>Monthly Report Downloader</title>
   <style>
     body { font-family: sans-serif; margin: 40px; background: #f6f8fa; }
-    .container { max-width: 900px; margin: auto; padding: 30px; background: white; border-radius: 12px; box-shadow: 0 2px 10px #ddd; }
+    .container { max-width: 450px; margin: auto; padding: 30px; background: white; border-radius: 12px; box-shadow: 0 2px 10px #ddd; }
     select, button, input[type="radio"] { font-size: 1rem; margin-top: 10px; margin-bottom: 10px; padding: 8px; }
     button { background: #2ea44f; color: white; border: none; border-radius: 6px; cursor: pointer; }
     button:hover { background: #22863a; }
     .note { font-size: 0.9em; color: #555; }
     label { margin-top: 10px; margin-bottom: 4px; display: block; }
-    table { border-collapse: collapse; width: 100%; margin-top: 24px; background: #fafbfc;}
-    th, td { border: 1px solid #d1d5da; padding: 8px; text-align: left; }
-    th { background: #f6f8fa; }
-    .download-btn { margin-top: 16px; background: #0366d6; }
-    .download-btn:hover { background: #0356b6; }
-    .table-container { margin-top: 32px; display: flex; gap: 36px; }
-    .report-block { flex: 1 1 0; }
-    .report-title { font-weight: bold; margin-bottom: 8px; }
-    @media (max-width: 900px) {
-      .table-container { flex-direction: column; gap: 0; }
-      .report-block { margin-bottom: 32px; }
-    }
   </style>
   <script>
-    // Store last fetched CSV for each report type
-    let lastCSV = { booking: "", others: "" };
-
-    // Report config
-    const reports = {
-      booking: {
-        name: "Booking.com",
-        campaignId: "01JQXZQQ6R2AYMAEC2F72ZDFM6",
-        apiToken: "01JQXZQFZXEADNXDV0Z0483VC9"
-      },
-      others: {
-        name: "Others",
-        campaignId: "01JQXYJZ0CZ9FANHC1F2J9F2SQ",
-        apiToken: "01JQXYJ42DTD14394TZTA92RMJ"
-      }
-    };
-
     function populateYears() {
       const yearSelect = document.getElementById('year');
       const startYear = 2025;
@@ -54,83 +25,47 @@
       }
     }
 
-    function showReport() {
+    function downloadReport() {
       const year = document.getElementById('year').value;
       const month = document.getElementById('month').value;
       const reportType = document.querySelector('input[name="reportType"]:checked').value;
-      document.getElementById('booking-report').innerHTML = '';
-      document.getElementById('others-report').innerHTML = '';
-      document.getElementById('downloadBookingBtn').style.display = 'none';
-      document.getElementById('downloadOthersBtn').style.display = 'none';
 
       if (!year || !month) {
         alert('Please select both year and month');
         return;
       }
 
-      if (reportType === "booking" || reportType === "both") {
-        fetchAndDisplayReport("booking", year, month);
-      }
-      if (reportType === "others" || reportType === "both") {
-        fetchAndDisplayReport("others", year, month);
-      }
-    }
+      const reports = {
+        booking: {
+          campaignId: "01JQXZQQ6R2AYMAEC2F72ZDFM6",
+          apiToken: "01JQXZQFZXEADNXDV0Z0483VC9"
+        },
+        others: {
+          campaignId: "01JQXYJZ0CZ9FANHC1F2J9F2SQ",
+          apiToken: "01JQXYJ42DTD14394TZTA92RMJ"
+        }
+      };
 
-    function fetchAndDisplayReport(type, year, month) {
       const startDate = `${year}-${month}-01`;
       const endDay = new Date(year, month, 0).getDate();
       const endDate = `${year}-${month}-${endDay}`;
-      const url =
-        `https://r.v2i8b.com/api/v1/reporting/client/conversion?campaign_id=${reports[type].campaignId}` +
-        `&api_token=${reports[type].apiToken}` +
-        `&start_date=${startDate}&end_date=${endDate}&format=csv`;
-      fetch(url)
-        .then(response => {
-          if (!response.ok) throw new Error("Report not found or unavailable for this month.");
-          return response.text();
-        })
-        .then(csv => {
-          lastCSV[type] = csv;
-          renderCSVTable(type, csv);
-          document.getElementById(type === "booking" ? 'downloadBookingBtn' : 'downloadOthersBtn').style.display = 'block';
-        })
-        .catch(err => {
-          document.getElementById(type === "booking" ? 'booking-report' : 'others-report').innerHTML =
-            `<span style="color:red;">Error: ${err.message}</span>`;
-        });
-    }
 
-    function renderCSVTable(type, csv) {
-      const tableDiv = document.getElementById(type === "booking" ? 'booking-report' : 'others-report');
-      // Basic CSV parsing (works with simple CSV)
-      const rows = csv.trim().split('\n').map(r => r.split(','));
-      if (!rows.length || !rows[0].length) {
-        tableDiv.innerHTML = "<span>No data found for this month.</span>";
-        return;
+      function reportUrl(type) {
+        return (
+          `https://r.v2i8b.com/api/v1/reporting/client/conversion?campaign_id=${reports[type].campaignId}` +
+          `&api_token=${reports[type].apiToken}` +
+          `&start_date=${startDate}&end_date=${endDate}&format=csv`
+        );
       }
-      let html = "<div class='report-title'>" + reports[type].name + " Report</div><table><thead><tr>";
-      rows[0].forEach(cell => html += `<th>${cell}</th>`);
-      html += "</tr></thead><tbody>";
-      for (let i=1; i<rows.length; i++) {
-        html += "<tr>";
-        rows[i].forEach(cell => html += `<td>${cell}</td>`);
-        html += "</tr>";
-      }
-      html += "</tbody></table>";
-      tableDiv.innerHTML = html;
-    }
 
-    function downloadCSV(type) {
-      if (!lastCSV[type]) return;
-      const blob = new Blob([lastCSV[type]], {type: 'text/csv'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = reports[type].name + '_report.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      if (reportType === "booking") {
+        window.open(reportUrl("booking"), "_blank");
+      } else if (reportType === "others") {
+        window.open(reportUrl("others"), "_blank");
+      } else if (reportType === "both") {
+        window.open(reportUrl("booking"), "_blank");
+        window.open(reportUrl("others"), "_blank");
+      }
     }
 
     window.onload = populateYears;
@@ -138,7 +73,7 @@
 </head>
 <body>
   <div class="container">
-    <h2>View & Download Monthly Conversion Reports</h2>
+    <h2>Download Monthly Conversion Report</h2>
     <label for="year">Year:</label>
     <select id="year"></select>
     <label for="month">Month:</label>
@@ -158,23 +93,17 @@
       <option value="12">December</option>
     </select>
     <label>Report Type:</label>
-    <input type="radio" name="reportType" id="bookingRadio" value="booking" checked> <label for="bookingRadio" style="display:inline;">Booking.com</label>
-    <input type="radio" name="reportType" id="othersRadio" value="others"> <label for="othersRadio" style="display:inline;">Others</label>
-    <input type="radio" name="reportType" id="bothRadio" value="both"> <label for="bothRadio" style="display:inline;">Both</label>
+    <input type="radio" name="reportType" id="bookingRadio" value="booking" checked>
+    <label for="bookingRadio" style="display:inline;">Booking.com</label>
+    <input type="radio" name="reportType" id="othersRadio" value="others">
+    <label for="othersRadio" style="display:inline;">Others</label>
+    <input type="radio" name="reportType" id="bothRadio" value="both">
+    <label for="bothRadio" style="display:inline;">Both</label>
     <br>
-    <button onclick="showReport()">Show Report(s)</button>
+    <button onclick="downloadReport()">Download Report(s)</button>
     <div class="note">
-      The report(s) will be shown below. If you see an error, the report for the selected month may not exist yet or API access is blocked.<br>
-    </div>
-    <div class="table-container">
-      <div class="report-block">
-        <div id="booking-report"></div>
-        <button id="downloadBookingBtn" class="download-btn" onclick="downloadCSV('booking')" style="display:none;">Download Booking.com CSV</button>
-      </div>
-      <div class="report-block">
-        <div id="others-report"></div>
-        <button id="downloadOthersBtn" class="download-btn" onclick="downloadCSV('others')" style="display:none;">Download Others CSV</button>
-      </div>
+      The report(s) will open in a new tab for download.<br>
+      <strong>Note:</strong> If you see an error, the report for the selected month may not exist yet.
     </div>
   </div>
 </body>
