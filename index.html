@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Monthly Report Downloader</title>
+  <style>
+    body { font-family: sans-serif; margin: 40px; background: #f6f8fa; }
+    .container { max-width: 400px; margin: auto; padding: 30px; background: white; border-radius: 12px; box-shadow: 0 2px 10px #ddd; }
+    select, button { font-size: 1rem; margin-top: 10px; margin-bottom: 10px; padding: 8px; width: 100%; box-sizing: border-box; }
+    button { background: #2ea44f; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #22863a; }
+    .note { font-size: 0.9em; color: #555; }
+    label { margin-top: 10px; display: block; }
+  </style>
+  <script>
+    function downloadReport() {
+      const campaignId = '01JQXZQQ6R2AYMAEC2F72ZDFM6';
+      const apiToken = '01JQXZQFZXEADNXDV0Z0483VC9';
+      const year = document.getElementById('year').value;
+      const month = document.getElementById('month').value;
+      if (!year || !month) {
+        alert('Please select both year and month');
+        return;
+      }
+      const startDate = `${year}-${month}-01`;
+      const endDay = new Date(year, month, 0).getDate();
+      const endDate = `${year}-${month}-${endDay}`;
+      const url =
+        `https://r.v2i8b.com/api/v1/reporting/client/conversion?campaign_id=${campaignId}` +
+        `&api_token=${apiToken}` +
+        `&start_date=${startDate}&end_date=${endDate}&format=csv`;
+      window.open(url, '_blank');
+    }
+
+    function populateYears() {
+      const yearSelect = document.getElementById('year');
+      const currentYear = new Date().getFullYear();
+      for (let y = currentYear; y >= currentYear - 5; y--) {
+        let opt = document.createElement('option');
+        opt.value = y;
+        opt.text = y;
+        yearSelect.appendChild(opt);
+      }
+    }
+    window.onload = populateYears;
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h2>Download Monthly Report</h2>
+    <label for="year">Year:</label>
+    <select id="year"></select>
+    <label for="month">Month:</label>
+    <select id="month">
+      <option value="">--Select Month--</option>
+      <option value="01">January</option>
+      <option value="02">February</option>
+      <option value="03">March</option>
+      <option value="04">April</option>
+      <option value="05">May</option>
+      <option value="06">June</option>
+      <option value="07">July</option>
+      <option value="08">August</option>
+      <option value="09">September</option>
+      <option value="10">October</option>
+      <option value="11">November</option>
+      <option value="12">December</option>
+    </select>
+    <button onclick="downloadReport()">Download CSV</button>
+    <div class="note">
+      The report will open in a new tab for easy download.<br>
+      <strong>Note:</strong> If you see an error, the report for the selected month may not exist yet.
+    </div>
+  </div>
+</body>
+</html>
