@@ -6,40 +6,31 @@
   <style>
     body { font-family: sans-serif; margin: 40px; background: #f6f8fa; }
     .container { max-width: 500px; margin: auto; padding: 30px; background: white; border-radius: 12px; box-shadow: 0 2px 10px #ddd; }
-    select, button, input[type="radio"], input[type="date"] { font-size: 1rem; margin-top: 10px; margin-bottom: 10px; padding: 8px; }
+    select, button, input[type="checkbox"] { font-size: 1rem; margin-top: 10px; margin-bottom: 10px; padding: 8px; }
     button { background: #2ea44f; color: white; border: none; border-radius: 6px; cursor: pointer;}
     button:hover { background: #22863a; }
     .note { font-size: 0.9em; color: #555; }
     label { margin-top: 10px; margin-bottom: 4px; display: block; }
     .section { margin-bottom: 18px;}
+    .checkbox-group label { display: block; margin: 6px 0; }
   </style>
   <script>
     const reports = {
       booking: {
         name: "Conversion Report (Booking.com)",
-        url: function(year, month) {
+        url: function(startDate, endDate) {
           const campaignId = "01JQXZQQ6R2AYMAEC2F72ZDFM6";
           const apiToken = "01JQXZQFZXEADNXDV0Z0483VC9";
-          const startDate = `${year}-${month}-01`;
-          const endDay = new Date(year, month, 0).getDate();
-          const endDate = `${year}-${month}-${endDay}`;
           return `https://r.v2i8b.com/api/v1/reporting/client/conversion?campaign_id=${campaignId}&api_token=${apiToken}&start_date=${startDate}&end_date=${endDate}&format=csv`;
-        },
-        needsYM: true,
-        needsDates: false
+        }
       },
       others: {
         name: "Conversion Report (Others)",
-        url: function(year, month) {
+        url: function(startDate, endDate) {
           const campaignId = "01JQXYJZ0CZ9FANHC1F2J9F2SQ";
           const apiToken = "01JQXYJ42DTD14394TZTA92RMJ";
-          const startDate = `${year}-${month}-01`;
-          const endDay = new Date(year, month, 0).getDate();
-          const endDate = `${year}-${month}-${endDay}`;
           return `https://r.v2i8b.com/api/v1/reporting/client/conversion?campaign_id=${campaignId}&api_token=${apiToken}&start_date=${startDate}&end_date=${endDate}&format=csv`;
-        },
-        needsYM: true,
-        needsDates: false
+        }
       },
       domain: {
         name: "Revenue by Domain",
@@ -47,9 +38,7 @@
           const campaignId = "01JQXYJZ0CZ9FANHC1F2J9F2SQ";
           const apiToken = "01JQXYJ42DTD14394TZTA92RMJ";
           return `https://r.v2i8b.com/api/v1/reporting/client/domain?campaign_id=${campaignId}&start_date=${startDate}&end_date=${endDate}&api_token=${apiToken}&format=csv`;
-        },
-        needsYM: false,
-        needsDates: true
+        }
       },
       campaign: {
         name: "Stats by Campaign ID",
@@ -57,9 +46,7 @@
           const campaignId = "01JQXYJZ0CZ9FANHC1F2J9F2SQ";
           const apiToken = "01JQXYJ42DTD14394TZTA92RMJ";
           return `https://r.v2i8b.com/api/v1/reporting/client/campaign?campaign_id=${campaignId}&start_date=${startDate}&end_date=${endDate}&api_token=${apiToken}&format=csv`;
-        },
-        needsYM: false,
-        needsDates: true
+        }
       }
     };
 
@@ -75,101 +62,43 @@
       }
     }
 
-    function updateInputFields() {
-      const reportType = document.querySelector('input[name="reportType"]:checked').value;
-      let needsYM = false, needsDates = false;
-      if (reportType === "all") {
-        needsYM = true;
-        needsDates = true;
-      } else {
-        needsYM = reports[reportType].needsYM;
-        needsDates = reports[reportType].needsDates;
-      }
-      document.getElementById('ym-fields').style.display = needsYM ? '' : 'none';
-      document.getElementById('date-fields').style.display = needsDates ? '' : 'none';
+    function lastDayOfMonth(year, month) {
+      return new Date(year, month, 0).getDate();
     }
 
-    function dateDiffInDays(a, b) {
-      // a, b in yyyy-mm-dd format
-      const d1 = new Date(a);
-      const d2 = new Date(b);
-      // Calculate difference in days, inclusive
-      return Math.floor((d2 - d1) / (1000*60*60*24)) + 1;
-    }
-
-    function downloadReport() {
-      const reportType = document.querySelector('input[name="reportType"]:checked').value;
+    function downloadReports() {
       const year = document.getElementById('year').value;
       const month = document.getElementById('month').value;
-      const startDate = document.getElementById('startDate').value;
-      const endDate = document.getElementById('endDate').value;
-
       let errors = [];
+      if (!year || !month) errors.push("year/month");
 
-      if ((reportType === "booking" || reportType === "others") && (!year || !month)) {
-        errors.push("year/month");
-      }
-      if ((reportType === "domain" || reportType === "campaign") && (!startDate || !endDate)) {
-        errors.push("start/end dates");
-      }
-      if (reportType === "all") {
-        if (!year || !month) errors.push("year/month");
-        if (!startDate || !endDate) errors.push("start/end dates");
-      }
-
-      // Validate 31 days for date range reports
-      if ((reportType === "domain" || reportType === "campaign" || reportType === "all") && startDate && endDate) {
-        const diff = dateDiffInDays(startDate, endDate);
-        if (diff > 31) {
-          alert("Date range must be 31 days or less for Domain and Campaign reports.");
-          return;
-        }
-        if (diff < 1) {
-          alert("End date must be the same or after Start date.");
-          return;
-        }
-      }
+      // Get which reports are checked
+      const checked = Array.from(document.querySelectorAll('input[name="report"]:checked')).map(cb => cb.value);
+      if (checked.length === 0) errors.push("at least one report type");
 
       if (errors.length) {
         alert("Please select: " + errors.join(" and "));
         return;
       }
 
-      if (reportType === "booking" || reportType === "others") {
-        window.open(reports[reportType].url(year, month), "_blank");
-      } else if (reportType === "domain" || reportType === "campaign") {
-        window.open(reports[reportType].url(startDate, endDate), "_blank");
-      } else if (reportType === "all") {
-        window.open(reports.booking.url(year, month), "_blank");
-        window.open(reports.others.url(year, month), "_blank");
-        window.open(reports.domain.url(startDate, endDate), "_blank");
-        window.open(reports.campaign.url(startDate, endDate), "_blank");
-      }
+      const startDate = `${year}-${month}-01`;
+      const endDay = lastDayOfMonth(year, month);
+      const endDate = `${year}-${month}-${endDay}`;
+
+      // All reports use the same date range (the selected month)
+      checked.forEach(type => {
+        window.open(reports[type].url(startDate, endDate), "_blank");
+      });
     }
 
     window.onload = function() {
       populateYears();
-      updateInputFields();
-      document.querySelectorAll('input[name="reportType"]').forEach(function(radio) {
-        radio.addEventListener('change', updateInputFields);
-      });
     };
   </script>
 </head>
 <body>
   <div class="container">
     <h2>Shopnomix Report Downloader</h2>
-    <label>Report Type:</label>
-    <input type="radio" name="reportType" id="bookingRadio" value="booking" checked>
-    <label for="bookingRadio" style="display:inline;">Conversion Report (Booking.com)</label>
-    <input type="radio" name="reportType" id="othersRadio" value="others">
-    <label for="othersRadio" style="display:inline;">Conversion Report (Others)</label>
-    <input type="radio" name="reportType" id="domainRadio" value="domain">
-    <label for="domainRadio" style="display:inline;">Revenue by Domain</label>
-    <input type="radio" name="reportType" id="campaignRadio" value="campaign">
-    <label for="campaignRadio" style="display:inline;">Stats by Campaign ID</label>
-    <input type="radio" name="reportType" id="allRadio" value="all">
-    <label for="allRadio" style="display:inline;">All Reports</label>
     <div id="ym-fields" class="section">
       <label for="year">Year:</label>
       <select id="year"></select>
@@ -190,16 +119,13 @@
         <option value="12">December</option>
       </select>
     </div>
-    <div id="date-fields" class="section" style="display:none;">
-      <label for="startDate">Start Date:</label>
-      <input type="date" id="startDate">
-      <label for="endDate">End Date:</label>
-      <input type="date" id="endDate">
-      <div class="note">
-        <strong>Note:</strong> Date range must be 31 days or less.
-      </div>
+    <div class="checkbox-group section">
+      <label><input type="checkbox" name="report" value="booking"> Conversion Report (Booking.com)</label>
+      <label><input type="checkbox" name="report" value="others"> Conversion Report (Others)</label>
+      <label><input type="checkbox" name="report" value="domain"> Revenue by Domain</label>
+      <label><input type="checkbox" name="report" value="campaign"> Stats by Campaign ID</label>
     </div>
-    <button onclick="downloadReport()">Download Report(s)</button>
+    <button onclick="downloadReports()">Download Selected Reports</button>
     <div class="note">
       The selected report(s) will open in a new tab for download.<br>
       If you see an error, the report for the selected period may not exist yet.
