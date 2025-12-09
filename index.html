@@ -28,12 +28,7 @@
         url: function(startDate, endDate) {
           return `https://r.v2i8b.com/api/v1/reporting/client/conversion?campaign_id=01JQXYJZ0CZ9FANHC1F2J9F2SQ&api_token=01JQXYJ42DTD14394TZTA92RMJ&start_date=${startDate}&end_date=${endDate}&format=csv`;
         }
-      },
-      walmart: {
-        label: "Conversion Report (Walmart)",
-        url: function(startDate, endDate) {
-          return `https://r.v2i8b.com/api/v1/reporting/client/conversion?campaign_id=01KBZ4ZFVXE89VT1BN2ZDD0WWN&api_token=01KBZ4YW66X8Q3RZEX21GTDRGX&start_date=${startDate}&end_date=${endDate}&format=csv`;
-        }
+     
       },
       campaign: {
         label: "Stats by Campaign ID",
@@ -111,7 +106,6 @@
       <label>Select Report Type:</label>
       <label><input type="radio" name="reportType" value="booking"> Conversion Report (Booking.com)</label>
       <label><input type="radio" name="reportType" value="others"> Conversion Report (Others)</label>
-      <label><input type="radio" name="reportType" value="walmart"> Conversion Report (Walmart)</label>
       <label><input type="radio" name="reportType" value="campaign"> Stats by Campaign ID</label>
       <label><input type="radio" name="reportType" value="domain"> Revenue by Domain</label>
     </div>
